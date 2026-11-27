@@ -78,6 +78,7 @@
 | 074 | 2026-11-26 | [상세 구현 명세를 색인으로 만들기](074-spec-index.md) |
 | 075 | 2026-11-26 | [`/toPolicy` 대신 정책 빈칸 셋 반영](075-policy-gaps-from-topolicy.md) |
 | 076 | 2026-11-26 | [개발 넘기기 전 이슈 점검과 COM-010 작업 연결](076-link-com010-to-tasks.md) |
+| 077 | 2026-11-26 | [GitHub README 꾸미기](077-github-readme.md) |
 | 078 | 2026-11-26 | [서버 인증 /health, /me와 세션 만료 구현](078-server-auth-me-health.md) |
 | 079 | 2026-11-26 | [#31 B 갈래: Swift 코어 피처와 웹 wasm 브리지](079-issue-31-core-and-web-bridge.md) |
 | 080 | 2026-11-26 | [#31 웹 로그인 화면·터미널 껍데기·로그인 모듈](080-web-login-views-auth.md) |
