@@ -8,6 +8,7 @@ import type {
   LoggedInState,
   SaveFailure,
   SaveRecovery,
+  SearchQuery,
   TerminalLine,
 } from "../../support/view-state";
 import { DockInput, Line, Prompt, StatusBar, Window, type StatusItem } from "../../ui/grep";
@@ -173,12 +174,21 @@ function rowSummary(item: ItemSummary): string | null {
   return item.partialNote ? `${item.listSummary} (${item.partialNote})` : item.listSummary;
 }
 
+/**
+ * 찾기 일치 위치(commands 6절 목록 꼬리표). 행에 이미 보이는 곳(제목·출처·요약·태그)은 붙이지 않는다.
+ * shortcut: 정책 문구는 `이미지 속 글자` 하나뿐이다. `본문` 표시는 정책에 문구가 생기면 더한다.
+ */
+const MATCH_LABEL: Partial<Record<NonNullable<ItemSummary["matchedIn"]>, string>> = {
+  imageText: "이미지 속 글자",
+};
+
 const rowTone = (item: ItemSummary) =>
   item.status === "blocked" || item.status === "failed" ? "gt-warn" : "gt-hint";
 
 function ListRow({ item }: { item: ItemSummary }) {
   const tags = item.tags.slice(0, LIST_TAG_LIMIT);
   const summary = rowSummary(item);
+  const match = item.matchedIn === null ? undefined : MATCH_LABEL[item.matchedIn];
   return (
     <>
       <div className="gt-line gt-row">
@@ -187,9 +197,10 @@ function ListRow({ item }: { item: ItemSummary }) {
         {item.source && <span className="gt-row-meta">{item.source}</span>}
         <span className="gt-row-meta">{savedAtText(item.savedAt)}</span>
       </div>
-      {(summary !== null || tags.length > 0) && (
+      {(summary !== null || match !== undefined || tags.length > 0) && (
         <div className={`gt-line gt-row-sub ${rowTone(item)}`}>
           {summary !== null && <span>{summary}</span>}
+          {match !== undefined && <span className="gt-row-match">{`· ${match}`}</span>}
           {tags.length > 0 && <span className="gt-row-tags">{tags.map((tag) => `#${tag}`).join(" ")}</span>}
         </div>
       )}
@@ -211,6 +222,33 @@ function ListLines({ items, hasMore, onMoreRequested }: { items: ItemSummary[]; 
           </button>
         </Plain>
       )}
+    </>
+  );
+}
+
+/** 찾기 머리줄 `4건`, 다음 쪽이 남으면 `23건 중 10건`. 머리 숫자는 보인 행 수와 맞춘다(commands 6절 더 보기). */
+function searchHeader(total: number, shown: number): string {
+  return shown < total ? `${total}건 중 ${shown}건` : `${total}건`;
+}
+
+type SearchResultLinesProps = { total: number; items: ItemSummary[]; hasMore: boolean; onMoreRequested?: () => void };
+
+function SearchResultLines({ total, items, hasMore, onMoreRequested }: SearchResultLinesProps) {
+  return (
+    <>
+      <Plain>{searchHeader(total, items.length)}</Plain>
+      <ListLines items={items} hasMore={hasMore} onMoreRequested={onMoreRequested} />
+    </>
+  );
+}
+
+/** 0건 뒤 최근 자료는 검색 결과처럼 읽히지 않게 머리줄을 단다(commands 6절, ARC-002 사용자 문구). */
+function NoResultsLines({ query, recent }: { query: SearchQuery; recent: ItemSummary[] }) {
+  return (
+    <>
+      <Line tone="info">{`0건: "${query.text}"`}</Line>
+      {recent.length > 0 && <Line tone="info">{`최근 저장 ${recent.length}건 (검색 결과 아님)`}</Line>}
+      <ListLines items={recent} hasMore={false} />
     </>
   );
 }
@@ -238,7 +276,13 @@ function OutputLine({ line, failed, onMoreRequested }: OutputLineProps) {
       );
     case "missingArgument":
       // 다른 명령의 빠진 인자 문구는 그 명령의 실행 이슈에서 더한다.
-      return line.command === "keep" ? <Line tone="error">저장할 것 없음  예: 담기 https://…</Line> : null;
+      if (line.command === "keep") return <Line tone="error">저장할 것 없음  예: 담기 https://…</Line>;
+      // commands 6절 "빠진 인자".
+      if (line.command === "seek") return <Line tone="error">검색어 없음  예: 찾기 결제</Line>;
+      return null;
+    case "missingTag":
+      // ARC-002 사용자 문구.
+      return <Line tone="error">태그 없음  예: 찾기 #결제</Line>;
     case "saved":
       return <SavedLines item={line.item} />;
     case "alreadySaved":
@@ -249,6 +293,12 @@ function OutputLine({ line, failed, onMoreRequested }: OutputLineProps) {
       return <SaveFailedLines reason={line.reason} recovery={line.recovery} />;
     case "recentList":
       return <ListLines items={line.items} hasMore={line.hasMore} onMoreRequested={onMoreRequested} />;
+    case "searchResult":
+      return (
+        <SearchResultLines total={line.total} items={line.items} hasMore={line.hasMore} onMoreRequested={onMoreRequested} />
+      );
+    case "noResults":
+      return <NoResultsLines query={line.query} recent={line.recent} />;
     case "commandFailed":
       return <CommandFailedLines command={line.command} reason={line.reason} retry={line.retry} />;
     case "reconnected":
