@@ -115,7 +115,7 @@ public enum TerminalStateMapper {
         switch line {
         case .prompt(let text):
             return [.prompt(command: text, failed: failed)]
-        case .unknownCommand(let name):
+        case .unknownCommand(let name, _):
             return [.status(tone: .error, boldPrefix: "없는 명령:", body: " \(name)")]
         case .missingArgument(let command):
             switch command {
@@ -154,20 +154,20 @@ public enum TerminalStateMapper {
                 result.append(.commandHint(prefix: "→ 다시: ", command: command, suffix: ""))
             }
             return result
-        case .recentList(let items, let hasMore):
+        case .recentList(let items, let hasMore, _, _):
             return [.list(
                 header: nil,
                 items: items.map { mapRow($0, isPicked: pickedNumbers.contains($0.number)) },
                 hasMore: hasMore
             )]
-        case .searchResult(_, let total, let items, let hasMore):
+        case .searchResult(_, let total, let items, let hasMore, _):
             let header = items.count < total ? "\(total)건 중 \(items.count)건" : "\(total)건"
             return [.list(
                 header: header,
                 items: items.map { mapRow($0, isPicked: pickedNumbers.contains($0.number)) },
                 hasMore: hasMore
             )]
-        case .noResults(let query, let recent):
+        case .noResults(let query, let recent, _):
             var result: [TerminalOutputBlockLine] = [
                 .status(tone: .info, boldPrefix: nil, body: #"0건: "\#(query.text)""#),
             ]
@@ -227,6 +227,10 @@ public enum TerminalStateMapper {
             return [.status(tone: .info, boldPrefix: "\(commandLabel(command))", body: "  \(aboutDescription(command))")]
         case .reconnected:
             return [.status(tone: .ok, boldPrefix: nil, body: "연결됨")]
+        case .dropConfirm, .dropped, .revived, .binList, .binEmptyConfirm, .binEmptied,
+             .revised, .tagsRemoved, .samplesSaved, .unpicked, .pickCleared, .signOutEverywhereConfirm:
+            // 후속 iOS 이슈(#94~)에서 정책 원문으로 추가한다.
+            return []
         }
     }
 
@@ -325,6 +329,10 @@ public enum TerminalStateMapper {
         case .guide: "도움말"
         case .about: "설명"
         case .signOut: "로그아웃"
+        case .revise: "고치기"
+        case .drop: "버리기"
+        case .revive: "되살리기"
+        case .bin: "휴지통"
         }
     }
 
@@ -338,6 +346,10 @@ public enum TerminalStateMapper {
         case .guide: "전체 명령 목록  예: 도움말"
         case .about: "명령 사용법 안내  예: 설명 찾기"
         case .signOut: "이 기기의 세션 종료  예: 로그아웃"
+        case .revise: "제목·요약 수정, 태그 지우기  예: 고치기 131 -#위젯"
+        case .drop: "자료를 휴지통으로  예: 버리기 131, 버리기 1-8"
+        case .revive: "휴지통에서 돌리기  예: 되살리기 131"
+        case .bin: "휴지통 목록·비우기  예: 휴지통, 휴지통 비우기"
         }
     }
 
